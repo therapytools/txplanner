@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Treatment Plan Builder</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .add-btn, .remove-btn, .copy-btn {
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+    .add-btn:hover, .remove-btn:hover, .copy-btn:hover {
+      transform: scale(1.1);
+    }
+    .copied {
+      color: red !important;
+    }
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-radius: 50%;
+      border-top: 4px solid #3498db;
+      width: 40px;
+      height: 40px;
+      animation: spin 2s linear infinite;
+    }
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+    <header class="text-center mb-8">
+      <h1 class="text-3xl md:text-4xl font-bold text-gray-700">Treatment Plan Builder</h1>
+      <p class="text-gray-500 mt-2">Select an area of focus to see suggested goals and objectives.</p>
+    </header>
+
+    <main id="app-container" class="bg-white p-6 rounded-xl shadow-lg">
+      <div id="loader-container" class="flex justify-center items-center h-64">
+        <div class="loader"></div>
+      </div>
+      <div id="content-container" class="hidden">
+        <!-- Area of Focus -->
+        <div class="mb-6">
+          <label for="areaOfFocus" class="block text-lg font-medium text-gray-700 mb-2">Area of Focus</label>
+          <select id="areaOfFocus" class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"></select>
+        </div>
+
+        <!-- Long Term Goals -->
+        <div class="mb-6">
+          <label class="block text-lg font-medium text-gray-700 mb-2">Long Term Goals</label>
+          <div id="longTermGoalsContainer"></div>
+          <!-- Removed "Add Goal" button -->
+        </div>
+
+        <!-- Short Term Objectives -->
+        <div>
+          <label class="block text-lg font-medium text-gray-700 mb-2">Short Term Objectives</label>
+          <div id="shortTermObjectivesContainer"></div>
+          <!-- Removed "Add Objective" button -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    let treatmentData = [];
+
+    const loaderContainer = document.getElementById('loader-container');
+    const contentContainer = document.getElementById('content-container');
+    const areaOfFocusSelect = document.getElementById('areaOfFocus');
+    const longTermGoalsContainer = document.getElementById('longTermGoalsContainer');
+    const shortTermObjectivesContainer = document.getElementById('shortTermObjectivesContainer');
+    // Removed references to add buttons as they are no longer in the HTML
+    // const addLongTermGoalBtn = document.getElementById('addLongTermGoal');
+    // const addShortTermObjectiveBtn = document.getElementById('addShortTermObjective');
+
+    function markIconCopied(icon) {
+      icon.classList.add('copied');
+      setTimeout(() => {
+        icon.classList.remove('copied');
+      }, 1000);
+    }
+
+    function populateAreaOfFocus() {
+      areaOfFocusSelect.innerHTML = '';
+      treatmentData.forEach((item, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = item.areaOfFocus;
+        areaOfFocusSelect.appendChild(option);
+      });
+      if (treatmentData.length > 0) {
+        areaOfFocusSelect.value = 0;
+        populateGoalsAndObjectives();
+      } else {
+        longTermGoalsContainer.innerHTML = '';
+        shortTermObjectivesContainer.innerHTML = '';
+      }
+    }
+
+    function createItem(text, type, index) {
+      const itemContainer = document.createElement('div');
+      itemContainer.className = 'flex items-center space-x-2 mb-2 group';
+
+      const copyBtn = document.createElement('button');
+      const copyIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      copyIcon.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      copyIcon.setAttribute("class", "h-5 w-5 text-blue-600");
+      copyIcon.setAttribute("fill", "none");
+      copyIcon.setAttribute("viewBox", "0 0 24 24");
+      copyIcon.setAttribute("stroke", "currentColor");
+      copyIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16h8M8 12h8m-6-4h6M9 4h6a2 2 0 012 2v12a2 2 0 01-2 2H9a2 2 0 01-2-2V6a2 2 0 012-2z" />';
+      copyBtn.className = 'copy-btn';
+      copyBtn.appendChild(copyIcon);
+      copyBtn.onclick = (e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text);
+        markIconCopied(copyIcon);
+      };
+
+      const itemText = document.createElement('div');
+      itemText.textContent = text;
+      itemText.className = 'flex-grow p-3 border border-gray-200 rounded-lg bg-gray-50 cursor-pointer';
+      itemText.title = "Click to copy to clipboard";
+      itemText.onclick = () => {
+        navigator.clipboard.writeText(text);
+        markIconCopied(copyIcon);
+      };
+
+      const removeBtn = document.createElement('button');
+      removeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-600 group-hover:text-red-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 12H6" /></svg>`;
+      removeBtn.className = 'remove-btn';
+      removeBtn.onclick = () => removeItem(type, index);
+
+      itemContainer.appendChild(copyBtn);
+      itemContainer.appendChild(itemText);
+      itemContainer.appendChild(removeBtn);
+
+      return itemContainer;
+    }
+
+    function populateGoalsAndObjectives() {
+      const selectedIndex = areaOfFocusSelect.value;
+      if (!treatmentData[selectedIndex]) {
+        longTermGoalsContainer.innerHTML = '<p class="text-gray-500">No goals available.</p>';
+        shortTermObjectivesContainer.innerHTML = '<p class="text-gray-500">No objectives available.</p>';
+        return;
+      }
+
+      const selectedData = treatmentData[selectedIndex];
+      longTermGoalsContainer.innerHTML = '';
+      shortTermObjectivesContainer.innerHTML = '';
+
+      selectedData.longTermGoals.forEach((goal, index) => {
+        longTermGoalsContainer.appendChild(createItem(goal, 'long', index));
+      });
+
+      selectedData.shortTermObjectives.forEach((objective, index) => {
+        shortTermObjectivesContainer.appendChild(createItem(objective, 'short', index));
+      });
+    }
+
+    function removeItem(type, itemIndex) {
+      const areaIndex = areaOfFocusSelect.value;
+      if (type === 'long') {
+        treatmentData[areaIndex].longTermGoals.splice(itemIndex, 1);
+      } else {
+        treatmentData[areaIndex].shortTermObjectives.splice(itemIndex, 1);
+      }
+      populateGoalsAndObjectives();
+    }
+
+    // Removed addItem function as it is no longer needed
+    // function addItem(type) {
+    //   const areaIndex = areaOfFocusSelect.value;
+    //   const newItemText = prompt(`Enter the new ${type === 'long' ? 'Long Term Goal' : 'Short Term Objective'}:`);
+    //   if (newItemText && newItemText.trim() !== '') {
+    //     if (type === 'long') {
+    //       treatmentData[areaIndex].longTermGoals.push(newItemText);
+    //     } else {
+    //       treatmentData[areaIndex].shortTermObjectives.push(newItemText);
+    //     }
+    //     populateGoalsAndObjectives();
+    //   }
+    // }
+
+    areaOfFocusSelect.addEventListener('change', populateGoalsAndObjectives);
+    // Removed event listeners for add buttons
+    // addLongTermGoalBtn.addEventListener('click', () => addItem('long'));
+    // addShortTermObjectiveBtn.addEventListener('click', () => addItem('short'));
+
+    document.addEventListener('DOMContentLoaded', () => {
+      fetch('data.json')
+        .then(response => {
+          if (!response.ok) throw new Error('Network response was not ok ' + response.statusText);
+          return response.json();
+        })
+        .then(data => {
+          treatmentData = data;
+          loaderContainer.style.display = 'none';
+          contentContainer.classList.remove('hidden');
+          populateAreaOfFocus();
+        })
+        .catch(error => {
+          console.error('Fetch error:', error);
+          loaderContainer.innerHTML = `<p class="text-red-500">Error loading data.json.</p>`;
+        });
+    });
+  </script>
+</body>
+</html>
